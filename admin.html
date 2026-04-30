@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f4e79">
+<title>Admin — Aroma Lab</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { overflow-x: hidden; }
+  body { font-family: 'Inter', sans-serif; background: #f4f6fa; }
+
+  .topbar { background: #1f4e79; color: #fff; padding: 12px 0; position: sticky; top: 0; z-index: 50; }
+  .topbar a, .topbar .brand { color: #fff; text-decoration: none; }
+  .brand { font-weight: 800; font-size: clamp(16px, 3vw, 22px); }
+  .brand span { color: #ffd54f; }
+  .topbar-links { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .topbar-links a { font-size: 14px; }
+
+  .card { border: 0; border-radius: 16px; box-shadow: 0 4px 14px rgba(31,78,121,.06); }
+  .card h5 { font-weight: 700; color: #1f4e79; }
+  .table thead th { background: #f0f6fb; color: #1f4e79; font-weight: 700; border: 0; white-space: nowrap; }
+  .btn-primary { background: #1f4e79; border: 0; }
+  .btn-primary:hover { background: #163a5c; }
+  .btn { min-height: 40px; }
+  .form-control, .form-select { min-height: 44px; }
+  .price-pill { background:#f0f6fb; color:#1f4e79; font-weight:700; padding:4px 10px; border-radius:8px; white-space: nowrap; }
+
+  /* Mobile-friendly products list: stack into cards under sm */
+  @media (max-width: 575.98px) {
+    .topbar-links a:not(.btn) { display: none; }
+    .product-table thead { display: none; }
+    .product-table, .product-table tbody, .product-table tr, .product-table td { display: block; width: 100%; }
+    .product-table tr {
+      background: #fff;
+      border: 1px solid #eef0f3;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(31,78,121,.04);
+    }
+    .product-table td {
+      padding: 4px 0;
+      border: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .product-table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: #6b7280;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .product-table td.actions-cell { justify-content: flex-end; padding-top: 10px; border-top: 1px dashed #eef0f3; margin-top: 8px; }
+    .product-table td.actions-cell::before { display: none; }
+  }
+
+  /* Modal sizing on small screens */
+  @media (max-width: 575.98px) {
+    .modal-dialog { margin: .5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div class="brand">Aroma <span>Lab</span> · Admin</div>
+    <div class="topbar-links">
+      <a href="{{ url_for('pos') }}">POS</a>
+      <a href="{{ url_for('landing') }}">Site</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-warning btn-sm text-dark fw-semibold">Logout</a>
+    </div>
+  </div>
+</div>
+
+<div class="container py-3 py-md-4">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} alert-dismissible fade show">{{ msg }}<button class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="row g-3 g-md-4">
+    <div class="col-12 col-lg-4">
+      <div class="card p-3 p-md-4">
+        <h5 class="mb-3">➕ Add Product</h5>
+        <form method="POST" action="{{ url_for('product_create') }}">
+          <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input class="form-control" name="name" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category</label>
+            <input class="form-control" name="category" placeholder="Coffee, Tea, Pastry…" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Price</label>
+            <input class="form-control" name="price" type="number" step="0.01" min="0.01" inputmode="decimal" required>
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="ia" checked>
+            <label class="form-check-label" for="ia">Active</label>
+          </div>
+          <button class="btn btn-primary w-100">Create Product</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+      <div class="card p-3 p-md-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="mb-0">📋 Products ({{ products|length }})</h5>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle product-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Category</th><th>Price</th><th>Active</th><th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in products %}
+                <tr>
+                  <td data-label="ID">{{ p.product_id }}</td>
+                  <td data-label="Name" class="fw-semibold">{{ p.name }}</td>
+                  <td data-label="Category"><span class="badge bg-light text-dark border">{{ p.category }}</span></td>
+                  <td data-label="Price"><span class="price-pill">${{ '%.2f'|format(p.price) }}</span></td>
+                  <td data-label="Active">
+                    {% if p.is_active %}<span class="badge bg-success">Yes</span>
+                    {% else %}<span class="badge bg-secondary">No</span>{% endif %}
+                  </td>
+                  <td class="text-end actions-cell">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit{{ p.product_id }}">Edit</button>
+                    <form method="POST" action="{{ url_for('product_delete', product_id=p.product_id) }}" class="d-inline" onsubmit="return confirm('Delete this product?');">
+                      <button class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+
+                <!-- Edit modal -->
+                <div class="modal fade" id="edit{{ p.product_id }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                    <form class="modal-content" method="POST" action="{{ url_for('product_update', product_id=p.product_id) }}">
+                      <div class="modal-header"><h5 class="modal-title">Edit Product #{{ p.product_id }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                      <div class="modal-body">
+                        <div class="mb-3"><label class="form-label">Name</label><input class="form-control" name="name" value="{{ p.name }}" required></div>
+                        <div class="mb-3"><label class="form-label">Category</label><input class="form-control" name="category" value="{{ p.category }}" required></div>
+                        <div class="mb-3"><label class="form-label">Price</label><input class="form-control" name="price" type="number" step="0.01" min="0.01" inputmode="decimal" value="{{ p.price }}" required></div>
+                        <div class="form-check"><input type="checkbox" class="form-check-input" name="is_active" id="ia{{ p.product_id }}" {% if p.is_active %}checked{% endif %}><label class="form-check-label" for="ia{{ p.product_id }}">Active</label></div>
+                      </div>
+                      <div class="modal-footer flex-wrap gap-2">
+                        <button type="button" class="btn btn-secondary flex-grow-1 flex-sm-grow-0" data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn btn-primary flex-grow-1 flex-sm-grow-0">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No products yet — create your first one!</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
